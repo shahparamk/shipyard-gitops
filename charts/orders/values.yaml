@@ -1,0 +1,40 @@
+# Defaults. Environment-specific values live in envs/<env>/values-orders.yaml
+
+image:
+  registry: 717279721195.dkr.ecr.us-east-1.amazonaws.com
+  tag: "" # REQUIRED: git SHA from shipyard-apps CI
+  pullPolicy: IfNotPresent
+
+aws:
+  region: us-east-1
+
+queue:
+  url: "" # REQUIRED
+
+database:
+  host: "" # REQUIRED: RDS endpoint
+  port: 5432
+  name: orders
+  sslMode: require
+  secretName: orders-db # Kubernetes Secret with keys "username" and "password" (created by External Secrets)
+
+api:
+  replicas: 2
+  serviceAccountName: orders-api # must match the Pod Identity association in Terraform
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+worker:
+  replicas: 2
+  serviceAccountName: orders-worker # must match the Pod Identity association in Terraform
+  processingMs: 500
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi

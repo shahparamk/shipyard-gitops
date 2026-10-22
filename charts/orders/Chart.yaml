@@ -1,0 +1,5 @@
+apiVersion: v2
+name: orders
+description: ShipYard Orders API and worker
+type: application
+version: 0.1.0 # chart version; bump when templates change

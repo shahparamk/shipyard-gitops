@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orders-worker
+  labels:
+    app.kubernetes.io/name: orders-worker
+    {{- include "orders.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.worker.replicas }}
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: orders-worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: orders-worker
+        {{- include "orders.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Values.worker.serviceAccountName }}
+      securityContext:
+        {{- include "orders.podSecurityContext" . | nindent 8 }}
+      terminationGracePeriodSeconds: 45 # long poll (20s) + finishing the current batch
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: orders-worker
+      containers:
+        - name: worker
+          image: {{ include "orders.image" (dict "root" . "name" "worker") }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: metrics
+              containerPort: 9091
+          env:
+            {{- include "orders.commonEnv" . | nindent 12 }}
+            - name: PROCESSING_MS
+              value: {{ .Values.worker.processingMs | quote }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.worker.resources | nindent 12 }}
+          securityContext:
+            {{- include "orders.containerSecurityContext" . | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: orders-worker
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: orders-worker

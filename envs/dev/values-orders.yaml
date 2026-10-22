@@ -1,0 +1,8 @@
+image:
+  tag: "4e371de54a3a4872554dca4dc3908b78870647ec"
+
+queue:
+  url: https://sqs.us-east-1.amazonaws.com/717279721195/shipyard-dev-orders
+
+database:
+  host: "REPLACE_AFTER_FIRST_SPINUP.us-east-1.rds.amazonaws.com"

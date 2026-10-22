@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orders-api
+  labels:
+    app.kubernetes.io/name: orders-api
+    {{- include "orders.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.api.replicas }}
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: orders-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0 # never drop below desired capacity during a deploy
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: orders-api
+        {{- include "orders.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Values.api.serviceAccountName }}
+      securityContext:
+        {{- include "orders.podSecurityContext" . | nindent 8 }}
+      terminationGracePeriodSeconds: 30
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: orders-api
+      containers:
+        - name: api
+          image: {{ include "orders.image" (dict "root" . "name" "api") }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            {{- include "orders.commonEnv" . | nindent 12 }}
+            - name: PORT
+              value: "8080"
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 2
+            failureThreshold: 30 # up to 60s for startup (DB migration retries)
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sleep", "5"] # let load balancers stop routing here before SIGTERM
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+          securityContext:
+            {{- include "orders.containerSecurityContext" . | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orders-api
+  labels:
+    app.kubernetes.io/name: orders-api
+    {{- include "orders.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: orders-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: orders-api
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: orders-api
