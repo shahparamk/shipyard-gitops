@@ -17,11 +17,20 @@ helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 - name: QUEUE_URL
   value: {{ required "queue.url is required" .Values.queue.url | quote }}
 - name: PGHOST
-  value: {{ required "database.host is required" .Values.database.host | quote }}
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.database.secretName }}
+      key: host
 - name: PGPORT
-  value: {{ .Values.database.port | quote }}
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.database.secretName }}
+      key: port
 - name: PGDATABASE
-  value: {{ .Values.database.name | quote }}
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Values.database.secretName }}
+      key: dbname
 - name: PGUSER
   valueFrom:
     secretKeyRef:

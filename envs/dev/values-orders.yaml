@@ -5,4 +5,4 @@ queue:
   url: https://sqs.us-east-1.amazonaws.com/717279721195/shipyard-dev-orders
 
 database:
-  host: "REPLACE_AFTER_FIRST_SPINUP.us-east-1.rds.amazonaws.com"
+  awsSecretName: shipyard/dev/orders-db

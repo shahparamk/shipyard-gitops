@@ -12,11 +12,10 @@ queue:
   url: "" # REQUIRED
 
 database:
-  host: "" # REQUIRED: RDS endpoint
-  port: 5432
-  name: orders
   sslMode: require
-  secretName: orders-db # Kubernetes Secret with keys "username" and "password" (created by External Secrets)
+  secretName: orders-db # Kubernetes Secret the pods read (created by External Secrets)
+  secretStore: aws-secrets-manager # ClusterSecretStore name (see platform/)
+  awsSecretName: "" # REQUIRED: Secrets Manager name holding host/port/dbname/username/password Secrets)
 
 api:
   replicas: 2
