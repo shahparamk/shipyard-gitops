@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: orders
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/shahparamk/shipyard-gitops.git
+    targetRevision: main
+    path: charts/orders
+    helm:
+      valueFiles:
+        - ../../envs/dev/values-orders.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: shipyard
+  syncPolicy:
+    automated:
+      prune: true # delete things removed from Git
+      selfHeal: true # undo manual changes made with kubectl
+    syncOptions:
+      - CreateNamespace=true
