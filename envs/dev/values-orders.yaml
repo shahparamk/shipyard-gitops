@@ -1,5 +1,5 @@
 image:
-  tag: "4e371de54a3a4872554dca4dc3908b78870647ec"
+  tag: "38444d1a81b300ffa4a82212c5b4f41b97a6a996"
 
 queue:
   url: https://sqs.us-east-1.amazonaws.com/717279721195/shipyard-dev-orders

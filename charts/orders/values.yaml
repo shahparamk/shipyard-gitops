@@ -15,7 +15,7 @@ database:
   sslMode: require
   secretName: orders-db # Kubernetes Secret the pods read (created by External Secrets)
   secretStore: aws-secrets-manager # ClusterSecretStore name (see platform/)
-  awsSecretName: "" # REQUIRED: Secrets Manager name holding host/port/dbname/username/password Secrets)
+  awsSecretName: "" # REQUIRED: Secrets Manager name holding host/port/dbname/username/password
 
 api:
   replicas: 2
@@ -37,3 +37,12 @@ worker:
       memory: 128Mi
     limits:
       memory: 256Mi
+
+web:
+  replicas: 2
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 64Mi
