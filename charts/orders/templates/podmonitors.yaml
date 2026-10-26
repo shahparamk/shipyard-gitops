@@ -1,0 +1,33 @@
+{{- if .Values.monitoring.enabled }}
+# Tells Prometheus to scrape each API pod's /metrics on its "http" port
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: orders-api
+  labels:
+    {{- include "orders.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: orders-api
+  podMetricsEndpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+---
+# Worker metrics live on a separate "metrics" port (9091)
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: orders-worker
+  labels:
+    {{- include "orders.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: orders-worker
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      interval: 15s
+{{- end }}

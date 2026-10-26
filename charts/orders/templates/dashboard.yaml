@@ -1,0 +1,15 @@
+{{- if .Values.monitoring.enabled }}
+# Grafana's sidecar loads any ConfigMap labeled grafana_dashboard: "1" as a dashboard.
+# The JSON is read with .Files.Get (not templated), so Grafana's own legend placeholders
+# inside the JSON file are left untouched by Helm.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orders-dashboard
+  labels:
+    grafana_dashboard: "1"
+    {{- include "orders.labels" . | nindent 4 }}
+data:
+  shipyard-orders.json: |-
+{{ .Files.Get "dashboards/orders.json" | indent 4 }}
+{{- end }}
