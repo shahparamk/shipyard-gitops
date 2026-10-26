@@ -1,0 +1,85 @@
+{{- if .Values.monitoring.enabled }}
+# Alert rules evaluated by Prometheus; firing alerts show up in Alertmanager.
+# Health-check and /metrics traffic is excluded so probes don't hide real problems.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: orders-alerts
+  labels:
+    {{- include "orders.labels" . | nindent 4 }}
+spec:
+  groups:
+    - name: orders.slo
+      rules:
+        # SLO: 99% of API requests succeed
+        - alert: OrdersApiHighErrorRate
+          expr: |
+            (
+              sum(rate(http_request_duration_seconds_count{namespace="shipyard", route!~"/metrics|/healthz|/readyz|unmatched", status=~"5.."}[5m]))
+              /
+              sum(rate(http_request_duration_seconds_count{namespace="shipyard", route!~"/metrics|/healthz|/readyz|unmatched"}[5m]))
+            ) > 0.01
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: More than 1% of API requests are failing (SLO breach)
+            description: The orders API 5xx error ratio has been above 1% for 5 minutes.
+
+        # SLO: 95% of API requests complete in under 500 ms
+        - alert: OrdersApiHighLatency
+          expr: |
+            histogram_quantile(0.95,
+              sum by (le) (rate(http_request_duration_seconds_bucket{namespace="shipyard", route!~"/metrics|/healthz|/readyz|unmatched"}[5m]))
+            ) > 0.5
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: API p95 latency is above 500 ms (SLO breach)
+            description: 95th percentile API latency has been above 500 ms for 10 minutes.
+
+    - name: orders.queue
+      rules:
+        - alert: OrdersWorkerFailures
+          expr: sum(rate(orders_processed_total{namespace="shipyard", result="failed"}[5m])) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Workers are failing to process orders
+            description: Failed orders are being retried and may end up in the dead-letter queue.
+
+        - alert: OrdersBacklogGrowing
+          expr: |
+            sum(increase(orders_created_total{namespace="shipyard"}[10m]))
+            -
+            sum(increase(orders_processed_total{namespace="shipyard", result=~"processed|duplicate"}[10m]))
+            > 25
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Orders are being created faster than they are processed
+            description: More than 25 orders were created than processed in the last 10 minutes; the queue is backing up.
+
+    - name: orders.pods
+      rules:
+        - alert: OrdersPodRestarting
+          expr: increase(kube_pod_container_status_restarts_total{namespace="shipyard"}[15m]) > 2
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: An orders pod keeps restarting
+            description: Pod {{`{{ $labels.pod }}`}} restarted more than twice in 15 minutes (crash loop or OOMKill).
+
+        - alert: OrdersDeploymentDegraded
+          expr: kube_deployment_status_replicas_available{namespace="shipyard"} < kube_deployment_spec_replicas{namespace="shipyard"}
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: A deployment is running with fewer replicas than desired
+            description: Deployment {{`{{ $labels.deployment }}`}} has had fewer available replicas than desired for 5 minutes.
+{{- end }}

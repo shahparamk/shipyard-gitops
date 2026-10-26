@@ -50,3 +50,5 @@ ingress:
   enabled: false # turned on per environment
   host: ""
   certificateArn: ""      
+monitoring:
+  enabled: false # turned on per environment (needs the Prometheus Operator CRDs)
