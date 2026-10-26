@@ -3,6 +3,9 @@ kind: Application
 metadata:
   name: orders
   namespace: argocd
+  # Deleting this Application also deletes everything it deployed (including the Ingress -> ALB)
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
@@ -17,7 +20,18 @@ spec:
     namespace: shipyard
   syncPolicy:
     automated:
-      prune: true # delete things removed from Git
-      selfHeal: true # undo manual changes made with kubectl
+      prune: true
+      selfHeal: true
     syncOptions:
       - CreateNamespace=true
+    # Lets the load balancer wait until a new pod is healthy before sending it traffic
+    managedNamespaceMetadata:
+      labels:
+        elbv2.k8s.aws/pod-readiness-gate-inject: enabled
+    # The LB controller's webhook may not be ready on a fresh cluster; retry instead of failing
+    retry:
+      limit: 10
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 3m

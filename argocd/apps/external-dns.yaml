@@ -1,0 +1,39 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: external-dns
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://kubernetes-sigs.github.io/external-dns/
+    chart: external-dns
+    targetRevision: 1.23.0 # app version 0.23.0
+    helm:
+      valuesObject:
+        provider:
+          name: aws
+        env:
+          - name: AWS_DEFAULT_REGION
+            value: us-east-1
+        sources:
+          - ingress
+        domainFilters:
+          - paramshah.tech # never touches any other domain
+        extraArgs:
+          - --aws-zone-type=public
+        policy: sync # deletes records when the Ingress is removed (needed for clean teardown)
+        registry: txt
+        txtOwnerId: shipyard-dev # only manages records it created
+        serviceAccount:
+          create: true
+          name: external-dns # must match the Pod Identity association
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: external-dns
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

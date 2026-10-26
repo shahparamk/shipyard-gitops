@@ -46,3 +46,7 @@ web:
       memory: 32Mi
     limits:
       memory: 64Mi
+ingress:
+  enabled: false # turned on per environment
+  host: ""
+  certificateArn: ""      

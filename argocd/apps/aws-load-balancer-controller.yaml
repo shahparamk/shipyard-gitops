@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: aws-load-balancer-controller
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://aws.github.io/eks-charts
+    chart: aws-load-balancer-controller
+    targetRevision: 3.6.0 # pinned; matches the vendored IAM policy in shipyard-infra
+    helm:
+      valuesObject:
+        clusterName: shipyard-dev
+        region: us-east-1
+        vpcId: vpc-06bfd32f2870bac2c
+        serviceAccount:
+          create: true
+          name: aws-load-balancer-controller # must match the Pod Identity association
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true # its CRDs are large
