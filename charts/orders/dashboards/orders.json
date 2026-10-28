@@ -1,13 +1,13 @@
 {
   "uid": "shipyard-orders",
   "title": "ShipYard \u00b7 Orders",
-  "description": "API golden signals, SLOs, queue flow, worker distribution, and pod health",
+  "description": "API golden signals, SLOs, queue flow, worker distribution, pod health, and logs",
   "tags": [
     "shipyard"
   ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "editable": true,
   "refresh": "10s",
   "time": {
@@ -580,6 +580,70 @@
         "tooltip": {
           "mode": "multi"
         }
+      }
+    },
+    {
+      "id": 13,
+      "type": "logs",
+      "title": "Errors & warnings (orders)",
+      "description": "Every warn/error line from the API and worker, searchable in Loki",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 12,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "{namespace=\"shipyard\", app=~\"orders-api|orders-worker\"} | json | level=~\"warn|error\""
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true
+      }
+    },
+    {
+      "id": 14,
+      "type": "logs",
+      "title": "Order events (API + worker)",
+      "description": "Structured JSON logs; click a line to see fields like orderId, pod, level",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 36,
+        "w": 12,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "expr": "{namespace=\"shipyard\", app=~\"orders-api|orders-worker\"} | json | msg=~\"order processed|api listening|duplicate message ignored|processing failed.*\""
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true
       }
     }
   ]
