@@ -9,7 +9,7 @@ spec:
   source:
     repoURL: https://grafana.github.io/helm-charts
     chart: loki
-    targetRevision: 7.3.0 # Loki 3.6.12; pinned (2-week rule)
+    targetRevision: 7.3.0 # Loki 3.6.x; pinned (2-week rule)
     helm:
       valuesObject:
         deploymentMode: SingleBinary # one small pod instead of separate read/write/backend tiers
@@ -31,7 +31,15 @@ spec:
         singleBinary:
           replicas: 1
           persistence:
-            enabled: false # emptyDir: no EBS volume for teardown to block on
+            enabled: false # no PVC: the cluster has no EBS CSI driver, and teardown stays clean
+          # The container's root filesystem is read-only, so give Loki a writable
+          # scratch volume at /var/loki (emptyDir: wiped when the pod goes away)
+          extraVolumes:
+            - name: data
+              emptyDir: {}
+          extraVolumeMounts:
+            - name: data
+              mountPath: /var/loki
           resources:
             requests:
               cpu: 100m

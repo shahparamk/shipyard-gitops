@@ -17,12 +17,32 @@ spec:
         serviceAccount:
           create: true
           name: aws-load-balancer-controller # must match the Pod Identity association
+        # This webhook intercepts EVERY Service in the cluster. We only use Ingress -> ALB,
+        # and a broken webhook cert here blocked unrelated components (Prometheus) from
+        # creating Services. Turn it off to remove that blast radius.
+        enableServiceMutatorWebhook: false
   destination:
     server: https://kubernetes.default.svc
     namespace: kube-system
+  # The chart generates a self-signed webhook cert on every render. Argo renders repeatedly,
+  # so the Secret and the webhooks' caBundle drift apart. Keep whatever was created first.
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      jsonPointers:
+        - /data
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      jqPathExpressions:
+        - .webhooks[].clientConfig.caBundle
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      jqPathExpressions:
+        - .webhooks[].clientConfig.caBundle
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - ServerSideApply=true # its CRDs are large
+      - RespectIgnoreDifferences=true # also skip those fields when syncing, not just when diffing
