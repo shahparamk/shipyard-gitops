@@ -53,6 +53,13 @@ spec:
               label: grafana_dashboard
               labelValue: "1"
               searchNamespace: ALL # load dashboards shipped by any chart
+          # Loki as a second data source, next to Prometheus
+          additionalDataSources:
+            - name: Loki
+              type: loki
+              uid: loki # fixed uid so dashboards can reference it
+              url: http://loki.monitoring.svc.cluster.local:3100
+              access: proxy
           resources:
             requests:
               cpu: 50m
