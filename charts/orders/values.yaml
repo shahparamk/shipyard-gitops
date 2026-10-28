@@ -18,26 +18,34 @@ database:
   awsSecretName: "" # REQUIRED: Secrets Manager name holding host/port/dbname/username/password
 
 api:
-  replicas: 2
+  replicas: 2 # used only when autoscaling is off
   serviceAccountName: orders-api # must match the Pod Identity association in Terraform
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
   resources:
     requests:
       cpu: 50m
       memory: 128Mi
     limits:
       memory: 256Mi
+
 
 worker:
   replicas: 2
   serviceAccountName: orders-worker # must match the Pod Identity association in Terraform
   processingMs: 500
+  maxMessages: 10 # messages per SQS poll (1-10); 10 + concurrency 1 = old behavior (baseline)
+  concurrency: 1 # messages processed in parallel per pod
   resources:
     requests:
       cpu: 50m
       memory: 128Mi
     limits:
       memory: 256Mi
-
+  
 web:
   replicas: 2
   resources:
@@ -50,5 +58,3 @@ ingress:
   enabled: false # turned on per environment
   host: ""
   certificateArn: ""      
-monitoring:
-  enabled: false # turned on per environment (needs the Prometheus Operator CRDs)

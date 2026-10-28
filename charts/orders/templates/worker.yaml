@@ -39,6 +39,11 @@ spec:
             {{- include "orders.commonEnv" . | nindent 12 }}
             - name: PROCESSING_MS
               value: {{ .Values.worker.processingMs | quote }}
+            # Batch size per SQS poll (1-10) and in-pod parallelism (fixes batch hoarding)
+            - name: MAX_MESSAGES
+              value: {{ .Values.worker.maxMessages | quote }}
+            - name: CONCURRENCY
+              value: {{ .Values.worker.concurrency | quote }}
           livenessProbe:
             httpGet:
               path: /healthz
