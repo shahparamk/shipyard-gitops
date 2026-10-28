@@ -1,0 +1,70 @@
+# yaml-language-server: $schema=none
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: loki
+    targetRevision: 7.3.0 # Loki 3.6.12; pinned (2-week rule)
+    helm:
+      valuesObject:
+        deploymentMode: SingleBinary # one small pod instead of separate read/write/backend tiers
+        loki:
+          auth_enabled: false # single tenant; no X-Scope-OrgID header needed
+          commonConfig:
+            replication_factor: 1
+          storage:
+            type: filesystem # local disk; data is wiped at teardown like Prometheus
+          schemaConfig:
+            configs:
+              - from: "2024-01-01"
+                store: tsdb
+                object_store: filesystem
+                schema: v13
+                index:
+                  prefix: loki_index_
+                  period: 24h
+        singleBinary:
+          replicas: 1
+          persistence:
+            enabled: false # emptyDir: no EBS volume for teardown to block on
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+        # Scalable tiers off (we run SingleBinary)
+        read:
+          replicas: 0
+        write:
+          replicas: 0
+        backend:
+          replicas: 0
+        # Optional extras off: saves pods and memory on small nodes
+        gateway:
+          enabled: false
+        chunksCache:
+          enabled: false
+        resultsCache:
+          enabled: false
+        lokiCanary:
+          enabled: false
+        test:
+          enabled: false
+        minio:
+          enabled: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
