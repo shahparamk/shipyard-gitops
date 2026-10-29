@@ -1,0 +1,39 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: keda
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://kedacore.github.io/charts
+    chart: keda
+    targetRevision: 2.21.0 # pinned (2-week rule)
+    helm:
+      valuesObject:
+        serviceAccount:
+          operator:
+            name: keda-operator # must match the Pod Identity association in Terraform
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: keda
+  # KEDA's operator generates its own TLS certs at runtime and patches them into its
+  # admission webhook and the external-metrics APIService. Without this, Argo would
+  # "self-heal" those fields back and break KEDA (same cert drift we hit on Day 9).
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      jqPathExpressions:
+        - .webhooks[].clientConfig.caBundle
+    - group: apiregistration.k8s.io
+      kind: APIService
+      jsonPointers:
+        - /spec/caBundle
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true # KEDA's CRDs are large
+      - RespectIgnoreDifferences=true # don't overwrite the operator-managed certs on sync

@@ -6,7 +6,10 @@ metadata:
     app.kubernetes.io/name: orders-worker
     {{- include "orders.labels" . | nindent 4 }}
 spec:
+    # When KEDA is on, it owns the replica count (same reason as the API's HPA)
+  {{- if not .Values.worker.autoscaling.enabled }}
   replicas: {{ .Values.worker.replicas }}
+  {{- end }}
   revisionHistoryLimit: 5
   selector:
     matchLabels:

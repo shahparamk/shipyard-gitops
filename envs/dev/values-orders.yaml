@@ -17,3 +17,7 @@ ingress:
   certificateArn: arn:aws:acm:us-east-1:717279721195:certificate/863e642e-7d51-48e9-bee1-56df43c1787d
 monitoring:
   enabled: true
+
+worker:
+  autoscaling:
+    enabled: true
