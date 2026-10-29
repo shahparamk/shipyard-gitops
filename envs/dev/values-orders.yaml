@@ -1,6 +1,6 @@
 image:
-  tag: "70fff4d7010a202490a5098ffcf1da616635eda2"
-
+  tag: "ecb6aae14445793316570890e0d5419a1d392e8a"
+  
 api:
   autoscaling:
     enabled: true
