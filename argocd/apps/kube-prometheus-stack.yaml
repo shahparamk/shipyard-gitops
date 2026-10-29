@@ -29,6 +29,11 @@ spec:
         prometheusOperator:
           admissionWebhooks:
             enabled: false
+          # The operator's own TLS cert ALSO came from that (now disabled) hook job, so its
+          # pod waited forever to mount "kube-prometheus-stack-admission". Serve plain HTTP
+          # inside the cluster instead (only Prometheus scrapes the operator's metrics).
+          tls:
+            enabled: false
 
         prometheus:
           prometheusSpec:
