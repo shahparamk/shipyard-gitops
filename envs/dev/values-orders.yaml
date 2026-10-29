@@ -19,5 +19,7 @@ monitoring:
   enabled: true
 
 worker:
+  maxMessages: 5 # messages per SQS poll: a small batch still spreads work across pods
+  concurrency: 5 # process all 5 in parallel inside each pod
   autoscaling:
     enabled: true
