@@ -34,18 +34,23 @@ api:
 
 
 worker:
-  replicas: 2
+  replicas: 2 # used only when autoscaling is off
   serviceAccountName: orders-worker # must match the Pod Identity association in Terraform
   processingMs: 500
   maxMessages: 10 # messages per SQS poll (1-10); 10 + concurrency 1 = old behavior (baseline)
   concurrency: 1 # messages processed in parallel per pod
+  autoscaling:
+    enabled: false # KEDA, scaling on SQS queue depth
+    minReplicas: 2
+    maxReplicas: 5
+    queueLength: 5 # target waiting messages per worker pod
   resources:
     requests:
       cpu: 50m
       memory: 128Mi
     limits:
       memory: 256Mi
-  
+      
 web:
   replicas: 2
   resources:

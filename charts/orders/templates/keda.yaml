@@ -1,0 +1,38 @@
+{{- if .Values.worker.autoscaling.enabled }}
+# KEDA authenticates to AWS with the KEDA operator's own Pod Identity role
+# (read-only GetQueueAttributes), not the worker's role.
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: orders-worker-aws
+  labels:
+    {{- include "orders.labels" . | nindent 4 }}
+spec:
+  podIdentity:
+    provider: aws
+    identityOwner: keda
+---
+# Scale workers on SQS backlog: KEDA aims for about queueLength waiting messages per pod.
+# It creates and drives an HPA behind the scenes.
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: orders-worker
+  labels:
+    {{- include "orders.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    name: orders-worker
+  minReplicaCount: {{ .Values.worker.autoscaling.minReplicas }}
+  maxReplicaCount: {{ .Values.worker.autoscaling.maxReplicas }}
+  pollingInterval: 15 # check the queue every 15 seconds
+  cooldownPeriod: 60
+  triggers:
+    - type: aws-sqs-queue
+      authenticationRef:
+        name: orders-worker-aws
+      metadata:
+        queueURL: {{ required "queue.url is required" .Values.queue.url | quote }}
+        queueLength: {{ .Values.worker.autoscaling.queueLength | quote }}
+        awsRegion: {{ .Values.aws.region | quote }}
+{{- end }}
