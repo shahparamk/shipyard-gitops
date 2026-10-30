@@ -1,0 +1,60 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://charts.jetstack.io
+    chart: cert-manager
+    targetRevision: v1.21.2 # pinned (2-week rule); jetstack versions carry a "v"
+    helm:
+      valuesObject:
+        crds:
+          enabled: true # install cert-manager's CRDs (Certificate, Issuer, ...) with the chart
+        # Helm post-install hook that waits for the API; under Argo it re-runs on every sync and
+        # can fail the sync while the webhook is still starting. Argo's retries cover readiness.
+        startupapicheck:
+          enabled: false
+        resources:
+          requests:
+            cpu: 10m
+            memory: 48Mi
+          limits:
+            memory: 128Mi
+        webhook:
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 96Mi
+        cainjector:
+          resources:
+            requests:
+              cpu: 10m
+              memory: 48Mi
+            limits:
+              memory: 160Mi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  # cert-manager's own CA injector writes caBundle into its webhooks after Argo applies them
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      jqPathExpressions:
+        - .webhooks[].clientConfig.caBundle
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      jqPathExpressions:
+        - .webhooks[].clientConfig.caBundle
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true # the CRDs are large
+      - RespectIgnoreDifferences=true
