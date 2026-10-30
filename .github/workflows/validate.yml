@@ -1,0 +1,55 @@
+name: gitops
+# Runs on EVERY pull request (no path filters), so it always reports and can be a required check
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read # read-only: this workflow never deploys anything (Argo CD does)
+
+concurrency:
+  group: gitops-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  HELM_VERSION: v4.3.1 # same as the laptop, so CI and local renders match
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Helm (checksum verified)
+        run: |
+          curl -fsSLO "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz"
+          curl -fsSLO "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz.sha256sum"
+          sha256sum -c "helm-${HELM_VERSION}-linux-amd64.tar.gz.sha256sum"
+          tar -xzf "helm-${HELM_VERSION}-linux-amd64.tar.gz"
+          sudo mv linux-amd64/helm /usr/local/bin/helm
+          helm version --short
+
+      - name: Lint the orders chart with the dev values
+        run: helm lint charts/orders -f envs/dev/values-orders.yaml
+
+      - name: Render the orders chart (what Argo CD will deploy)
+        run: |
+          helm template orders charts/orders -f envs/dev/values-orders.yaml --namespace shipyard > rendered.yaml
+          echo "Rendered resources:"
+          grep '^kind:' rendered.yaml | sort | uniq -c
+
+      - name: Safety net still works (rendering without an image tag must fail)
+        run: |
+          if helm template orders charts/orders > /dev/null 2>&1; then
+            echo "ERROR: chart rendered without image.tag; the 'required' guard is broken"
+            exit 1
+          fi
+          echo "OK: rendering without image.tag fails as intended"
+
+      - name: Argo apps parse, charts are pinned, image tag is a SHA
+        run: |
+          python3 -m venv /tmp/venv
+          /tmp/venv/bin/pip install --quiet pyyaml==6.0.2
+          /tmp/venv/bin/python scripts/validate-apps.py
