@@ -26,14 +26,15 @@ spec:
         # Argo re-runs that job on every sync, so the cert Kubernetes trusts and the one
         # the operator serves drift apart ("tls: bad certificate"). Disable the webhook;
         # rules are validated earlier by helm lint/template. Long-term: cert-manager.
+                # Admission webhook + operator TLS, with certificates issued by cert-manager
+        # (no more Helm hook job that Argo re-runs on every sync, which drifted on Days 9-10)
         prometheusOperator:
           admissionWebhooks:
-            enabled: false
-          # The operator's own TLS cert ALSO came from that (now disabled) hook job, so its
-          # pod waited forever to mount "kube-prometheus-stack-admission". Serve plain HTTP
-          # inside the cluster instead (only Prometheus scrapes the operator's metrics).
+            enabled: true
+            certManager:
+              enabled: true
           tls:
-            enabled: false
+            enabled: true
 
         prometheus:
           prometheusSpec:
@@ -89,3 +90,31 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true # the Prometheus Operator CRDs are too large for client-side apply
+        destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  # cert-manager's CA injector writes caBundle into the operator's webhooks after Argo applies them
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      jqPathExpressions:
+        - .webhooks[].clientConfig.caBundle
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      jqPathExpressions:
+        - .webhooks[].clientConfig.caBundle
+syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true # the Prometheus Operator CRDs are too large for client-side apply
+      - RespectIgnoreDifferences=true
+    # On a fresh cluster, cert-manager's CRDs may not exist yet when this app first syncs
+    retry:
+      limit: 10
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 3m

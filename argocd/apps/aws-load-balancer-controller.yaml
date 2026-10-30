@@ -18,19 +18,17 @@ spec:
           create: true
           name: aws-load-balancer-controller # must match the Pod Identity association
         # This webhook intercepts EVERY Service in the cluster. We only use Ingress -> ALB,
-        # and a broken webhook cert here blocked unrelated components (Prometheus) from
-        # creating Services. Turn it off to remove that blast radius.
+        # so turn it off to remove that blast radius.
         enableServiceMutatorWebhook: false
+        # The webhook TLS cert is issued ONCE by cert-manager instead of being generated on
+        # every chart render (which drifted under Argo on Days 9 and 10).
+        enableCertManager: true
   destination:
     server: https://kubernetes.default.svc
     namespace: kube-system
-  # The chart generates a self-signed webhook cert on every render. Argo renders repeatedly,
-  # so the Secret and the webhooks' caBundle drift apart. Keep whatever was created first.
+  # cert-manager's CA injector writes caBundle into the webhooks after Argo applies them,
+  # so Argo must leave that one field alone. (The Secret is no longer rendered by the chart.)
   ignoreDifferences:
-    - group: ""
-      kind: Secret
-      jsonPointers:
-        - /data
     - group: admissionregistration.k8s.io
       kind: MutatingWebhookConfiguration
       jqPathExpressions:
@@ -45,4 +43,11 @@ spec:
       selfHeal: true
     syncOptions:
       - ServerSideApply=true # its CRDs are large
-      - RespectIgnoreDifferences=true # also skip those fields when syncing, not just when diffing
+      - RespectIgnoreDifferences=true
+    # On a fresh cluster, cert-manager's CRDs may not exist yet when this app first syncs
+    retry:
+      limit: 10
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 3m
