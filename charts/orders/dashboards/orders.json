@@ -7,7 +7,7 @@
   ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 2,
+  "version": 3,
   "editable": true,
   "refresh": "10s",
   "time": {
@@ -70,7 +70,7 @@
       "id": 2,
       "type": "stat",
       "title": "API 5xx error ratio (SLO < 1%)",
-      "description": "Share of API requests failing with 5xx over 5 minutes",
+      "description": "Share of API requests failing with 5xx over 5 minutes (0% when there are no errors or no traffic)",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -84,7 +84,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(http_request_duration_seconds_count{namespace=\"shipyard\", route!~\"/metrics|/healthz|/readyz|unmatched\", status=~\"5..\"}[5m])) / clamp_min(sum(rate(http_request_duration_seconds_count{namespace=\"shipyard\", route!~\"/metrics|/healthz|/readyz|unmatched\"}[5m])), 1e-9)",
+          "expr": "(sum(rate(http_request_duration_seconds_count{namespace=\"shipyard\", route!~\"/metrics|/healthz|/readyz|unmatched\", status=~\"5..\"}[5m])) or vector(0)) / clamp_min(sum(rate(http_request_duration_seconds_count{namespace=\"shipyard\", route!~\"/metrics|/healthz|/readyz|unmatched\"}[5m])) or vector(0), 1e-9)",
           "instant": false
         }
       ],
